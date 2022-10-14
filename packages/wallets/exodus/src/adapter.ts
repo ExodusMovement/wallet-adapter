@@ -1,4 +1,10 @@
-import type { EventEmitter, SendTransactionOptions, WalletName } from '@solana/wallet-adapter-base';
+import type {
+    EventEmitter,
+    SendTransactionOptions,
+    SupportedTransactionVersions,
+    TransactionOrVersionedTransaction,
+    WalletName,
+} from '@solana/wallet-adapter-base';
 import {
     BaseMessageSignerWalletAdapter,
     scopePollingDetectionStrategy,
@@ -27,12 +33,17 @@ interface ExodusWallet extends EventEmitter<ExodusWalletEvents> {
     isExodus: boolean;
     publicKey?: { toBytes(): Uint8Array };
     isConnected: boolean;
+    supportedTransactionVersions?: SupportedTransactionVersions;
     connect(): Promise<void>;
     disconnect(): Promise<void>;
-    signTransaction(transaction: Transaction): Promise<Transaction>;
-    signAllTransactions(transactions: Transaction[]): Promise<Transaction[]>;
+    signTransaction<T extends TransactionOrVersionedTransaction<this['supportedTransactionVersions']>>(
+        transaction: T
+    ): Promise<T>;
+    signAllTransactions<T extends TransactionOrVersionedTransaction<this['supportedTransactionVersions']>>(
+        transactions: T[]
+    ): Promise<T[]>;
     signAndSendTransaction(
-        transaction: Transaction,
+        transaction: TransactionOrVersionedTransaction<this['supportedTransactionVersions']>,
         options?: SendOptions
     ): Promise<{ signature: TransactionSignature }>;
     signMessage(message: Uint8Array): Promise<{ signature: Uint8Array }>;
@@ -55,7 +66,7 @@ export class ExodusWalletAdapter extends BaseMessageSignerWalletAdapter {
     url = 'https://www.exodus.com/browser-extension';
     icon =
         'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIyIiBoZWlnaHQ9IjEyNCIgdmlld0JveD0iMCAwIDEyMiAxMjQiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxtYXNrIGlkPSJtYXNrMF8zMF8xMTAiIHN0eWxlPSJtYXNrLXR5cGU6YWxwaGEiIG1hc2tVbml0cz0idXNlclNwYWNlT25Vc2UiIHg9IjAiIHk9IjAiIHdpZHRoPSIxMjIiIGhlaWdodD0iMTI0Ij4KPHBhdGggZD0iTTEyMS43ODcgMzQuODMzMUw2OS4zODc2IDAuNDc2NTYyVjE5LjY4NTVMMTAzLjAwMiA0MS41Mjg4TDk5LjA0NzQgNTQuMDQySDY5LjM4NzZWNjkuOTU4SDk5LjA0NzRMMTAzLjAwMiA4Mi40NzEyTDY5LjM4NzYgMTA0LjMxNFYxMjMuNTIzTDEyMS43ODcgODkuMjc2N0wxMTMuMjE4IDYyLjA1NDlMMTIxLjc4NyAzNC44MzMxWiIgZmlsbD0iIzFEMUQxQiIvPgo8cGF0aCBkPSJNMjMuNzk5MyA2OS45NThINTMuMzQ5M1Y1NC4wNDJIMjMuNjg5NEwxOS44NDQ2IDQxLjUyODhMNTMuMzQ5MyAxOS42ODU1VjAuNDc2NTYyTDAuOTUwMTk1IDM0LjgzMzFMOS41MTg2IDYyLjA1NDlMMC45NTAxOTUgODkuMjc2N0w1My40NTkxIDEyMy41MjNWMTA0LjMxNEwxOS44NDQ2IDgyLjQ3MTJMMjMuNzk5MyA2OS45NThaIiBmaWxsPSIjMUQxRDFCIi8+CjwvbWFzaz4KPGcgbWFzaz0idXJsKCNtYXNrMF8zMF8xMTApIj4KPHBhdGggZD0iTTEyMS43ODcgMzQuODMzMUw2OS4zODc2IDAuNDc2NTYyVjE5LjY4NTVMMTAzLjAwMiA0MS41Mjg4TDk5LjA0NzQgNTQuMDQySDY5LjM4NzZWNjkuOTU4SDk5LjA0NzRMMTAzLjAwMiA4Mi40NzEyTDY5LjM4NzYgMTA0LjMxNFYxMjMuNTIzTDEyMS43ODcgODkuMjc2N0wxMTMuMjE4IDYyLjA1NDlMMTIxLjc4NyAzNC44MzMxWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTIzLjc5OTMgNjkuOTU4SDUzLjM0OTNWNTQuMDQySDIzLjY4OTRMMTkuODQ0NiA0MS41Mjg4TDUzLjM0OTMgMTkuNjg1NVYwLjQ3NjU2MkwwLjk1MDE5NSAzNC44MzMxTDkuNTE4NiA2Mi4wNTQ5TDAuOTUwMTk1IDg5LjI3NjdMNTMuNDU5MSAxMjMuNTIzVjEwNC4zMTRMMTkuODQ0NiA4Mi40NzEyTDIzLjc5OTMgNjkuOTU4WiIgZmlsbD0id2hpdGUiLz4KPHJlY3QgeD0iMS4xMDYzMiIgeT0iMC40NzY1NjIiIHdpZHRoPSIxMzMuNzQ0IiBoZWlnaHQ9IjEzNi4wODUiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl8zMF8xMTApIi8+CjxlbGxpcHNlIGN4PSI4LjQzMTc2IiBjeT0iMjcuNDYwMiIgcng9IjExNy42MzkiIHJ5PSIxMjcuNTQ1IiB0cmFuc2Zvcm09InJvdGF0ZSgtMzMuOTMwMyA4LjQzMTc2IDI3LjQ2MDIpIiBmaWxsPSJ1cmwoI3BhaW50MV9yYWRpYWxfMzBfMTEwKSIvPgo8L2c+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfMzBfMTEwIiB4MT0iMTA1LjA4NCIgeTE9IjEzMi41OTQiIHgyPSI2OS44NDM5IiB5Mj0iLTEyLjI3NjUiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPHN0b3Agc3RvcC1jb2xvcj0iIzBCNDZGOSIvPgo8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNCQkZCRTAiLz4KPC9saW5lYXJHcmFkaWVudD4KPHJhZGlhbEdyYWRpZW50IGlkPSJwYWludDFfcmFkaWFsXzMwXzExMCIgY3g9IjAiIGN5PSIwIiByPSIxIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSg4LjQzMTc1IDI3LjQ2MDIpIHJvdGF0ZSg3Mi4yNTU3KSBzY2FsZSg5Ni40OTc5IDkwLjQ1NDMpIj4KPHN0b3Agb2Zmc2V0PSIwLjExOTc5MiIgc3RvcC1jb2xvcj0iIzg5NTJGRiIgc3RvcC1vcGFjaXR5PSIwLjg3Ii8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI0RBQkRGRiIgc3RvcC1vcGFjaXR5PSIwIi8+CjwvcmFkaWFsR3JhZGllbnQ+CjwvZGVmcz4KPC9zdmc+Cg==';
-    readonly supportedTransactionVersions = null;
+    supportedTransactionVersions?: SupportedTransactionVersions;
 
     private _connecting: boolean;
     private _wallet: ExodusWallet | null;
@@ -75,6 +86,7 @@ export class ExodusWalletAdapter extends BaseMessageSignerWalletAdapter {
             scopePollingDetectionStrategy(() => {
                 if (window.exodus?.solana) {
                     this._readyState = WalletReadyState.Installed;
+                    this.supportedTransactionVersions = window.exodus?.solana?.supportedTransactionVersions;
                     this.emit('readyStateChange', this._readyState);
                     return true;
                 }
@@ -159,7 +171,7 @@ export class ExodusWalletAdapter extends BaseMessageSignerWalletAdapter {
     }
 
     async sendTransaction(
-        transaction: Transaction,
+        transaction: TransactionOrVersionedTransaction<this['supportedTransactionVersions']>,
         connection: Connection,
         options: SendTransactionOptions = {}
     ): Promise<TransactionSignature> {
@@ -168,16 +180,31 @@ export class ExodusWalletAdapter extends BaseMessageSignerWalletAdapter {
             if (!wallet) throw new WalletNotConnectedError();
 
             try {
-                const { signers, ...sendOptions } = options;
+                if ('version' in transaction) {
+                    if (!this.supportedTransactionVersions)
+                        throw new WalletSendTransactionError(
+                            `Sending versioned transactions isn't supported by this wallet`
+                        );
 
-                transaction = await this.prepareTransaction(transaction, connection, sendOptions);
+                    if (!this.supportedTransactionVersions.has(transaction.version))
+                        throw new WalletSendTransactionError(
+                            `Sending transaction version ${transaction.version} isn't supported by this wallet`
+                        );
 
-                signers?.length && transaction.partialSign(...signers);
+                    const { signature } = await wallet.signAndSendTransaction(transaction, options);
+                    return signature;
+                } else {
+                    const { signers, ...sendOptions } = options;
 
-                sendOptions.preflightCommitment = sendOptions.preflightCommitment || connection.commitment;
+                    transaction = await this.prepareTransaction(transaction, connection, sendOptions);
 
-                const { signature } = await wallet.signAndSendTransaction(transaction, sendOptions);
-                return signature;
+                    signers?.length && transaction.partialSign(...signers);
+
+                    sendOptions.preflightCommitment = sendOptions.preflightCommitment || connection.commitment;
+
+                    const { signature } = await wallet.signAndSendTransaction(transaction, sendOptions);
+                    return signature;
+                }
             } catch (error: any) {
                 if (error instanceof WalletError) throw error;
                 throw new WalletSendTransactionError(error?.message, error);
@@ -188,7 +215,9 @@ export class ExodusWalletAdapter extends BaseMessageSignerWalletAdapter {
         }
     }
 
-    async signTransaction<T extends Transaction>(transaction: T): Promise<T> {
+    async signTransaction<T extends TransactionOrVersionedTransaction<this['supportedTransactionVersions']>>(
+        transaction: T
+    ): Promise<T> {
         try {
             const wallet = this._wallet;
             if (!wallet) throw new WalletNotConnectedError();
@@ -204,7 +233,9 @@ export class ExodusWalletAdapter extends BaseMessageSignerWalletAdapter {
         }
     }
 
-    async signAllTransactions<T extends Transaction>(transactions: T[]): Promise<T[]> {
+    async signAllTransactions<T extends TransactionOrVersionedTransaction<this['supportedTransactionVersions']>>(
+        transactions: T[]
+    ): Promise<T[]> {
         try {
             const wallet = this._wallet;
             if (!wallet) throw new WalletNotConnectedError();
